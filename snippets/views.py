@@ -1,23 +1,65 @@
-# from rest_framework import status
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
 from django.contrib.auth.models import User
-from rest_framework import generics, permissions
+from rest_framework.response import Response
+from rest_framework import permissions, viewsets
+from rest_framework import renderers
+from rest_framework.decorators import action
+
 from .models import Snippet
 from .serializers import SnippetSerializer, UserSerializer
 from .permissions import IsOwnerOrReadOnly
 
+# Don't need this when using router
+# @api_view(['GET'])
+# def api_root(request, format=None):
+#     return Response({
+#         'users': reverse('user-list', request=request, format=format),
+#         'snippets': reverse('snippet-list', request=request, format=format)
+#     })
 
-class SnippetList(generics.ListCreateAPIView):
+
+class SnippetViewSet(viewsets.ModelViewSet):
     """
-    List all code snippets, or create a new snippet.
+    This viewset automatically provides `list`, `create`, `retrieve`,
+    `update` and `destroy` actions.
+
+    Additionally we also provide an extra `highlight` action.
     """
     queryset = Snippet.objects.all()
     serializer_class = SnippetSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly,
+                          IsOwnerOrReadOnly]
+
+    @action(detail=True, renderer_classes=[renderers.StaticHTMLRenderer])
+    def highlight(self, request, *args, **kwargs):
+        snippet = self.get_object()
+        return Response(snippet.highlighted)
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
+
+
+#  Revised to use generic views
+# class SnippetHighlight(generics.GenericAPIView):
+#     queryset = Snippet.objects.all()
+#     renderer_classes = [renderers.StaticHTMLRenderer]
+#
+#     def get(self, request, *args, **kwargs):
+#         snippet = self.get_object()
+#         return Response(snippet.highlighted)
+#
+#
+# class SnippetList(generics.ListCreateAPIView):
+#     """
+#     List all code snippets, or create a new snippet.
+#     """
+#     queryset = Snippet.objects.all()
+#     serializer_class = SnippetSerializer
+#     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+#
+#     def perform_create(self, serializer):
+#         serializer.save(owner=self.request.user)
+
+    # Original in typical Node style
 
     # def get(self, request, *args, **kwargs):
     #     return self.list(request, *args, **kwargs)
@@ -38,15 +80,17 @@ class SnippetList(generics.ListCreateAPIView):
     #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class SnippetDetail(generics.RetrieveUpdateDestroyAPIView):
-    """
-    Retrieve, update or delete a code snippet.
-    """
-    # permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-    queryset = Snippet.objects.all()
-    serializer_class = SnippetSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
+#  Revised to use generic view
+# class SnippetDetail(generics.RetrieveUpdateDestroyAPIView):
+#     """
+#     Retrieve, update or delete a code snippet.
+#     """
+#     # permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+#     queryset = Snippet.objects.all()
+#     serializer_class = SnippetSerializer
+#     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
 
+    #  Original in typical Node style
     # def get(self, request, *args, **kwargs):
     #     return self.retrieve(request, *args, **kwargs)
     #
@@ -81,11 +125,6 @@ class SnippetDetail(generics.RetrieveUpdateDestroyAPIView):
     #     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class UserList(generics.ListAPIView):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-
-
-class UserDetail(generics.RetrieveAPIView):
+class UserViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
